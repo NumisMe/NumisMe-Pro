@@ -11,7 +11,7 @@ interface IVault {
     function getLPToken() external view returns (address);
     function getPricePerFullShare() external view returns (uint256);
     function manager() external view returns (IManager);
-    function withdraw(uint256, address) external;
-    function withdrawAll(address) external;
+    function withdraw(uint256, address, uint256) external;
+    function withdrawAll(address, uint256) external;
     function withdrawFee(uint256 _amount) external view returns (uint256);
 }

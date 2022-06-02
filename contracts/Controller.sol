@@ -7,7 +7,6 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "./interfaces/IController.sol";
 import "./interfaces/IConverter.sol";
 import "./interfaces/IVault.sol";
-import "./interfaces/IHarvester.sol";
 import "./interfaces/IStrategy.sol";
 import "./interfaces/IManager.sol";
 
@@ -60,13 +59,11 @@ contract Controller is IController {
      * @param _vault The address of the vault
      * @param _strategy The address of the strategy
      * @param _cap The cap of the strategy
-     * @param _timeout The timeout between harvests
      */
     function addStrategy(
         address _vault,
         address _strategy,
-        uint256 _cap,
-        uint256 _timeout
+        uint256 _cap
     )
         external
         notHalted
@@ -88,10 +85,6 @@ contract Controller is IController {
         _vaultDetails[_vault].index[_strategy] = index;
         // store the mapping of strategy to the vault
         _vaultStrategies[_strategy] = _vault;
-        if (_timeout > 0) {
-            // add it to the harvester
-            IHarvester(manager.harvester()).addStrategy(_vault, _strategy, _timeout);
-        }
         emit StrategyAdded(_vault, _strategy, _cap);
     }
 
@@ -133,12 +126,10 @@ contract Controller is IController {
      * @notice Removes a strategy for a given token
      * @param _vault The address of the vault
      * @param _strategy The address of the strategy
-     * @param _timeout The timeout between harvests
      */
     function removeStrategy(
         address _vault,
-        address _strategy,
-        uint256 _timeout
+        address _strategy
     )
         external
         notHalted
@@ -169,8 +160,6 @@ contract Controller is IController {
         delete _vaultStrategies[_strategy];
         // pull funds from the removed strategy to the vault
         IStrategy(_strategy).withdrawAll();
-        // remove the strategy from the harvester
-        IHarvester(manager.harvester()).removeStrategy(_vault, _strategy, _timeout);
         emit StrategyRemoved(_vault, _strategy);
     }
 

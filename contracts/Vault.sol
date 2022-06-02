@@ -104,7 +104,7 @@ contract Vault is IVault {
     )
         internal
         notHalted
-        returns (uint256)
+        returns (uint256 _earned)
     {
         require(manager.allowedStrategies(_strategy), "!_strategy");
         IController _controller = IController(manager.controllers(address(this)));
@@ -112,8 +112,7 @@ contract Vault is IVault {
             IERC20 token = IERC20(_token);
             uint256 _balance = token.balanceOf(address(this));
             token.safeTransfer(address(_controller), _balance);
-            uint256 _earned = _controller.earn(_strategy, address(token), _balance);
-            return _earned;
+            _earned = _controller.earn(_strategy, address(token), _balance);
         }
     }
 
@@ -174,33 +173,26 @@ contract Vault is IVault {
      * @notice Withdraws an amount of shares to a given output token
      * @param _shares The amount of shares to withdraw
      * @param _token Output token
+     * @param _minOutput Minimum output tokens to receive
      */
     function withdraw(
         uint256 _shares,
-        address _token
+        address _token,
+        uint256 _minOutput
     )
         public
         override
     {
         require(allowedToken[_token], "Token not allowed");
+        IController _controller = IController(manager.controllers(address(this)));
         uint256 _amount = balance() * _shares / IERC20(address(vaultToken)).totalSupply();
         vaultToken.burn(msg.sender, _shares);
         IERC20 token = IERC20(_token);
 
-        uint256 _balance = token.balanceOf(address(this));
-        if (_balance < _amount) {
-            IController _controller = IController(manager.controllers(address(this)));
-            uint256 _toWithdraw = _amount - _balance;
-            if (_controller.strategies() > 0) {
-                _controller.withdraw(address(token), _toWithdraw);
-            }
-            uint256 _after = token.balanceOf(address(this));
-            uint256 _diff = _after - _balance;
-            if (_diff < _toWithdraw) {
-                _amount = _after;
-            }
-        }
+        require(_controller.strategies() > 0, "No strategies to withdraw from");
+        _controller.withdraw(address(token), _amount);
 
+        require(token.balanceOf(address(this)) >= _minOutput, "Receiving <min");
         token.safeTransfer(msg.sender, _amount);
         emit Withdraw(msg.sender, _amount);
     }
@@ -209,11 +201,11 @@ contract Vault is IVault {
      * @notice Withdraw the entire balance for an account
      * @param _token The address of the output token
      */
-    function withdrawAll(address _token)
+    function withdrawAll(address _token, uint256 _minOutput)
         external
         override
     {
-        withdraw(IERC20(address(vaultToken)).balanceOf(msg.sender), _token);
+        withdraw(IERC20(address(vaultToken)).balanceOf(msg.sender), _token, _minOutput);
     }
 
     /**
@@ -299,11 +291,6 @@ contract Vault is IVault {
 
     modifier notHalted() {
         require(!manager.halted(), "halted");
-        _;
-    }
-
-    modifier onlyHarvester() {
-        require(msg.sender == manager.harvester(), "!harvester");
         _;
     }
 
