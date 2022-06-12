@@ -7,7 +7,6 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import "./interfaces/IController.sol";
-import "./interfaces/IConverter.sol";
 import "./interfaces/IManager.sol";
 import "./interfaces/IStrategy.sol";
 import "./interfaces/IVault.sol";
@@ -43,7 +42,6 @@ contract Manager is IManager {
     // Governance must first allow the following properties before
     // the strategist can make use of them
     mapping(address => bool) public override allowedControllers;
-    mapping(address => bool) public override allowedConverters;
     mapping(address => bool) public override allowedStrategies;
     mapping(address => bool) public override allowedVaults;
 
@@ -52,10 +50,6 @@ contract Manager is IManager {
 
     event AllowedController(
         address indexed _controller,
-        bool _allowed
-    );
-    event AllowedConverter(
-        address indexed _converter,
         bool _allowed
     );
     event AllowedStrategy(
@@ -117,24 +111,6 @@ contract Manager is IManager {
         require(address(IController(_controller).manager()) == address(this), "!manager");
         allowedControllers[_controller] = _allowed;
         emit AllowedController(_controller, _allowed);
-    }
-
-    /**
-     * @notice Sets the permission for the given converter
-     * @param _converter The address of the converter
-     * @param _allowed The status of if it is allowed
-     */
-    function setAllowedConverter(
-        address _converter,
-        bool _allowed
-    )
-        external
-        notHalted
-        onlyGovernance
-    {
-        require(address(IConverter(_converter).manager()) == address(this), "!manager");
-        allowedConverters[_converter] = _allowed;
-        emit AllowedConverter(_converter, _allowed);
     }
 
     /**

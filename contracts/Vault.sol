@@ -19,7 +19,7 @@ import "./interfaces/ExtendedIERC20.sol";
  * @notice The vault is where users deposit and withdraw
  * like-kind assets that have been added by governance.
  */
-contract Vault is IVault {
+contract Vault is IVault, Context {
     using Address for address;
     using SafeERC20 for IERC20;
 
@@ -150,7 +150,7 @@ contract Vault is IVault {
         IERC20 token = IERC20(_token);
 
         uint256 _before = token.balanceOf(address(this));
-        token.safeTransferFrom(msg.sender, address(this), _amount);
+        token.safeTransferFrom(_msgSender(), address(this), _amount);
         _amount = token.balanceOf(address(this)) - _before;
         uint256 _supply = IERC20(address(vaultToken)).totalSupply();
 
@@ -165,8 +165,8 @@ contract Vault is IVault {
 
         require(_shares > 0, "shares=0");
         require(_supply + _shares <= totalDepositCap, ">totalDepositCap");
-        vaultToken.mint(msg.sender, _shares);
-        emit Deposit(msg.sender, _shares);
+        vaultToken.mint(_msgSender(), _shares);
+        emit Deposit(_msgSender(), _shares);
     }
 
     /**
@@ -186,15 +186,15 @@ contract Vault is IVault {
         require(allowedToken[_token], "Token not allowed");
         IController _controller = IController(manager.controllers(address(this)));
         uint256 _amount = balance() * _shares / IERC20(address(vaultToken)).totalSupply();
-        vaultToken.burn(msg.sender, _shares);
+        vaultToken.burn(_msgSender(), _shares);
         IERC20 token = IERC20(_token);
 
         require(_controller.strategies() > 0, "No strategies to withdraw from");
         _controller.withdraw(address(token), _amount);
 
         require(token.balanceOf(address(this)) >= _minOutput, "Receiving <min");
-        token.safeTransfer(msg.sender, _amount);
-        emit Withdraw(msg.sender, _amount);
+        token.safeTransfer(_msgSender(), _amount);
+        emit Withdraw(_msgSender(), _amount);
     }
 
     /**
@@ -205,7 +205,7 @@ contract Vault is IVault {
         external
         override
     {
-        withdraw(IERC20(address(vaultToken)).balanceOf(msg.sender), _token, _minOutput);
+        withdraw(IERC20(address(vaultToken)).balanceOf(_msgSender()), _token, _minOutput);
     }
 
     /**
@@ -295,7 +295,37 @@ contract Vault is IVault {
     }
 
     modifier onlyStrategist() {
-        require(msg.sender == manager.strategist(), "!strategist");
+        require(_msgSender() == manager.strategist(), "!strategist");
         _;
     }
+
+
+
+    // META-TX
+
+    mapping(address => bool) isTrustedForwarder;
+
+    function setTrustedForwarder(address _forwarder, bool _bool) external onlyStrategist {
+        isTrustedForwarder[_forwarder] = _bool;
+    }
+
+    function _msgSender() internal view override returns (address sender) {
+        if (isTrustedForwarder[msg.sender]) {
+            // The assembly code is more direct than the Solidity version using `abi.decode`.
+            /// @solidity memory-safe-assembly
+            assembly {
+                sender := shr(96, calldataload(sub(calldatasize(), 20)))
+            }
+        } else {
+            return super._msgSender();
+        }
+    }
+
+    function _msgData() internal view override returns (bytes calldata) {
+        if (isTrustedForwarder[msg.sender]) {
+            return msg.data[:msg.data.length - 20];
+        } else {
+            return super._msgData();
+        }
+    }    
 }

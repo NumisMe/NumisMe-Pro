@@ -4,7 +4,6 @@ pragma solidity ^0.8.0;
 
 interface IManager {
     function allowedControllers(address) external view returns (bool);
-    function allowedConverters(address) external view returns (bool);
     function allowedStrategies(address) external view returns (bool);
     function allowedVaults(address) external view returns (bool);
     function controllers(address) external view returns (address);
