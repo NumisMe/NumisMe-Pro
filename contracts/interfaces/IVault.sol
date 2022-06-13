@@ -14,6 +14,7 @@ interface IVault {
         uint256[] calldata _harvestEstimates,
         uint256 _minSharesOutput,
         uint256 _deadline,
+        uint256 _allowance,
         uint8 v,
         bytes32 r,
         bytes32 s

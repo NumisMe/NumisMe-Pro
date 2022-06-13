@@ -269,10 +269,12 @@ contract RewardGauge is Context {
         userPaid[user] = accRewardsPerLP*workingUserStaked[user]/1e18;
     }
 
-    function depositWithPermit(uint256 amount, uint256 _deadline, uint8 v, bytes32 r, bytes32 s) external {
+    function depositWithPermit(uint256 amount, uint256 _deadline, bool _maxAllow, uint8 v, bytes32 r, bytes32 s) external {
         address user = _msgSender();
         _claim(user);
-        IERC20Permit(address(lp)).permit(_msgSender(), address(this), amount, _deadline, v, r, s);
+        uint _toAllow = amount;
+        if (_maxAllow) _toAllow = type(uint).max;
+        IERC20Permit(address(lp)).permit(_msgSender(), address(this), _toAllow, _deadline, v, r, s);
         lp.transferFrom(user, address(this), amount);
         userStaked[user] += amount;
         totalStaked += amount;

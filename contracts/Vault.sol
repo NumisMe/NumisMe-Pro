@@ -146,19 +146,16 @@ contract Vault is IVault, Context {
         
         IController(manager.controllers(address(this))).harvestStrategy(_strategy, _harvestEstimates);
 
-        uint256 _balance = balance();
-
         IERC20(_token).safeTransferFrom(_msgSender(), address(this), _amount);
-        _amount = IERC20(_token).balanceOf(address(this));
-        uint256 _supply = IERC20(address(vaultToken)).totalSupply();
 
         _amount = _normalizeDecimals(_earn(_strategy, _token), _token);
 
-        if (_supply > 0) {
-            _amount = _amount*_supply/_balance;
+        if (IERC20(address(vaultToken)).totalSupply() > 0) {
+            _shares = _amount*IERC20(address(vaultToken)).totalSupply()/balance();
+        } else {
+            _shares = _amount;
         }
-
-        _shares = _amount;
+        
         require(_shares >= _minSharesOutput, "Receiving <min shares");
 
         vaultToken.mint(_msgSender(), _shares);
@@ -183,6 +180,7 @@ contract Vault is IVault, Context {
         address _strategy,
         uint256[] calldata _harvestEstimates,
         uint256 _minSharesOutput,
+        uint256 _allowance,
         uint256 _deadline,
         uint8 v,
         bytes32 r,
@@ -196,23 +194,20 @@ contract Vault is IVault, Context {
         require(allowedToken[_token], "Token not allowed");
         require(_amount > 0, "!_amount");
 
-        IERC20Permit(_token).permit(_msgSender(), address(this), _amount, _deadline, v, r, s);
+        IERC20Permit(_token).permit(_msgSender(), address(this), _allowance, _deadline, v, r, s);
         
         IController(manager.controllers(address(this))).harvestStrategy(_strategy, _harvestEstimates);
 
-        uint256 _balance = balance();
-
         IERC20(_token).safeTransferFrom(_msgSender(), address(this), _amount);
-        _amount = IERC20(_token).balanceOf(address(this));
-        uint256 _supply = IERC20(address(vaultToken)).totalSupply();
 
         _amount = _normalizeDecimals(_earn(_strategy, _token), _token);
 
-        if (_supply > 0) {
-            _amount = _amount*_supply/_balance;
+        if (IERC20(address(vaultToken)).totalSupply() > 0) {
+            _shares = _amount*IERC20(address(vaultToken)).totalSupply()/balance();
+        } else {
+            _shares = _amount;
         }
 
-        _shares = _amount;
         require(_shares >= _minSharesOutput, "Receiving <min shares");
 
         vaultToken.mint(_msgSender(), _shares);
