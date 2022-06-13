@@ -3,6 +3,7 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/draft-IERC20Permit.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/Context.sol";
@@ -143,15 +144,12 @@ contract Vault is IVault, Context {
         require(allowedToken[_token], "Token not allowed");
         require(_amount > 0, "!_amount");
         
-        IController _controller = IController(manager.controllers(address(this)));
-        _controller.harvestStrategy(_strategy, _harvestEstimates);
+        IController(manager.controllers(address(this))).harvestStrategy(_strategy, _harvestEstimates);
 
         uint256 _balance = balance();
-        IERC20 token = IERC20(_token);
 
-        uint256 _before = token.balanceOf(address(this));
-        token.safeTransferFrom(_msgSender(), address(this), _amount);
-        _amount = token.balanceOf(address(this)) - _before;
+        IERC20(_token).safeTransferFrom(_msgSender(), address(this), _amount);
+        _amount = IERC20(_token).balanceOf(address(this));
         uint256 _supply = IERC20(address(vaultToken)).totalSupply();
 
         _amount = _normalizeDecimals(_earn(_strategy, _token), _token);
@@ -163,11 +161,63 @@ contract Vault is IVault, Context {
         _shares = _amount;
         require(_shares >= _minSharesOutput, "Receiving <min shares");
 
-        require(_shares > 0, "shares=0");
-        require(_supply + _shares <= totalDepositCap, ">totalDepositCap");
         vaultToken.mint(_msgSender(), _shares);
         emit Deposit(_msgSender(), _shares);
     }
+
+    /**
+     * @notice Deposits the given token into the vault
+     * @param _token The token being deposited
+     * @param _amount The amount of tokens to deposit
+     * @param _strategy The strategy to deposit the tokens into
+     * @param _harvestEstimates Output values for harvesting, should be inputted by frontend
+     * @param _minSharesOutput Minimum shares an user will receive - needed when using converter
+     * @param _deadline Signature expiration
+     * @param v signature v
+     * @param r signature r
+     * @param s signature s
+     */
+    function depositWithPermit(
+        address _token,
+        uint256 _amount,
+        address _strategy,
+        uint256[] calldata _harvestEstimates,
+        uint256 _minSharesOutput,
+        uint256 _deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    )
+        public
+        override
+        notHalted
+        returns (uint256 _shares)
+    {
+        require(allowedToken[_token], "Token not allowed");
+        require(_amount > 0, "!_amount");
+
+        IERC20Permit(_token).permit(_msgSender(), address(this), _amount, _deadline, v, r, s);
+        
+        IController(manager.controllers(address(this))).harvestStrategy(_strategy, _harvestEstimates);
+
+        uint256 _balance = balance();
+
+        IERC20(_token).safeTransferFrom(_msgSender(), address(this), _amount);
+        _amount = IERC20(_token).balanceOf(address(this));
+        uint256 _supply = IERC20(address(vaultToken)).totalSupply();
+
+        _amount = _normalizeDecimals(_earn(_strategy, _token), _token);
+
+        if (_supply > 0) {
+            _amount = _amount*_supply/_balance;
+        }
+
+        _shares = _amount;
+        require(_shares >= _minSharesOutput, "Receiving <min shares");
+
+        vaultToken.mint(_msgSender(), _shares);
+        emit Deposit(_msgSender(), _shares);
+    }    
 
     /**
      * @notice Withdraws an amount of shares to a given output token

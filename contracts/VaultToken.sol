@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/draft-ERC20Permit.sol";
 import "./interfaces/IManager.sol";
 import "./interfaces/IVaultToken.sol";
 
 
 
-contract VaultToken is IVaultToken, ERC20 {
+contract VaultToken is IVaultToken, ERC20Permit {
 
     IManager public immutable manager;
 
@@ -16,6 +16,7 @@ contract VaultToken is IVaultToken, ERC20 {
         string memory _symbol,
         address _manager
     )
+        ERC20Permit(_name)
         ERC20(_name, _symbol)
     {
         manager = IManager(_manager);

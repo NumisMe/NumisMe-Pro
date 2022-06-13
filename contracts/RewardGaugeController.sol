@@ -3,6 +3,7 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/draft-IERC20Permit.sol";
 
 interface IERC20 {
     function totalSupply() external view returns (uint256);
@@ -267,6 +268,17 @@ contract RewardGauge is Context {
         updateWorkingState(user);
         userPaid[user] = accRewardsPerLP*workingUserStaked[user]/1e18;
     }
+
+    function depositWithPermit(uint256 amount, uint256 _deadline, uint8 v, bytes32 r, bytes32 s) external {
+        address user = _msgSender();
+        _claim(user);
+        IERC20Permit(address(lp)).permit(_msgSender(), address(this), amount, _deadline, v, r, s);
+        lp.transferFrom(user, address(this), amount);
+        userStaked[user] += amount;
+        totalStaked += amount;
+        updateWorkingState(user);
+        userPaid[user] = accRewardsPerLP*workingUserStaked[user]/1e18;
+    }    
 
     function withdraw(uint256 amount) external {
         address user = _msgSender();

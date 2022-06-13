@@ -7,6 +7,17 @@ import "./IManager.sol";
 interface IVault {
     function balance() external view returns (uint256);
     function deposit(address _token, uint256 _amount, address _strategy, uint256[] calldata _harvestEstimates, uint256 _minSharesOutput) external returns (uint256);
+    function depositWithPermit(
+        address _token,
+        uint256 _amount,
+        address _strategy,
+        uint256[] calldata _harvestEstimates,
+        uint256 _minSharesOutput,
+        uint256 _deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external returns (uint256);
     function gauge() external returns (address);
     function getLPToken() external view returns (address);
     function getPricePerFullShare() external view returns (uint256);
