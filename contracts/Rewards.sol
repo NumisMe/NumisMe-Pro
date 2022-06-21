@@ -75,7 +75,7 @@ contract Rewards is Ownable {
     }
 
     function shutdown() external onlyOwner {
-        reward.transfer(admin, reward.balanceOf(address(this))-totalUnclaimed());
+        reward.transfer(owner(), reward.balanceOf(address(this))-totalUnclaimed());
         updatePool();
         emission = 0;
     }
